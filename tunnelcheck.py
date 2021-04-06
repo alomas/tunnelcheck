@@ -7,11 +7,30 @@ from pip._vendor import certifi
 
 def main():
     config = configparser.ConfigParser()
+
     config.read('tunnelcheck.cfg')
-    deviceidstr = config['waninfo']['deviceid']
-    wantable = config['waninfo']['wantable']
-    awsregion = config['waninfo']['awsregion']
+    try:
+        deviceidstr = config['waninfo']['deviceid']
+        wantable = config['waninfo']['wantable']
+        awsregion = config['waninfo']['awsregion']
+    except KeyError as e:
+        print("No config file, so pulling info from my user's AWS tags.")
+        iam = boto3.resource("iam")
+        user = iam.CurrentUser()
+        tagset = user.tags
+        for tag in tagset:
+            if tag['Key'] == 'DeviceName':
+                devicename = tag['Value']
+            if tag['Key'] == 'DeviceID':
+                deviceidstr = tag['Value']
+            if tag['Key'] == 'AWSRegion':
+                awsregion = tag['Value']
+            if tag['Key'] == 'WANTable':
+                wantable = tag['Value']
+
     deviceid = int(deviceidstr)
+
+
     dynamodb = boto3.resource("dynamodb", region_name=awsregion)
     table = dynamodb.Table(wantable)
     myip = ""
